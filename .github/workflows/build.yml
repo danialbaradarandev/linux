@@ -6,9 +6,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
+      # مرحله 1: آزادسازی فضای دیسک
       - name: Maximize build space
-        uses: easimon/maximize-build-space@main
+        uses: easimon/maximize-build-space@v10
         with:
           root-reserve-mb: 512
           swap-size-mb: 1024
@@ -18,14 +20,17 @@ jobs:
           remove-codeql: 'true'
           remove-docker-images: 'true'
 
+      # مرحله 2: دریافت کدهای مخزن
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # مرحله 3: نصب پیش‌نیازها
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cpio
 
+      # مرحله 4: دانلود و تنظیم Buildroot
       - name: Download and configure Buildroot
         run: |
           wget https://buildroot.org/downloads/buildroot-2024.02.1.tar.gz
@@ -33,13 +38,16 @@ jobs:
           cd buildroot-2024.02.1
           make qemu_x86_64_defconfig
 
+      # مرحله 5: فرآیند ساخت
       - name: Build the Linux distribution
         working-directory: ./buildroot-2024.02.1
         run: |
           make MAKEINFO=false
 
+      # مرحله 6: ذخیره خروجی
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: buildroot-image
           path: buildroot-2024.02.1/output/images/
+        
