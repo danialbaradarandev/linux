@@ -1,0 +1,45 @@
+name: Build Custom Linux Distribution with Buildroot
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@main
+        with:
+          root-reserve-mb: 512
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cpio
+
+      - name: Download and configure Buildroot
+        run: |
+          wget https://buildroot.org/downloads/buildroot-2024.02.1.tar.gz
+          tar -zxf buildroot-2024.02.1.tar.gz
+          cd buildroot-2024.02.1
+          make qemu_x86_64_defconfig
+
+      - name: Build the Linux distribution
+        working-directory: ./buildroot-2024.02.1
+        run: |
+          make MAKEINFO=false
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildroot-image
+          path: buildroot-2024.02.1/output/images/
