@@ -36,7 +36,7 @@ jobs:
           wget https://buildroot.org/downloads/buildroot-2024.02.1.tar.gz
           tar -zxf buildroot-2024.02.1.tar.gz
           cd buildroot-2024.02.1
-          make qemu_x86_64_defconfig
+          make my_custom_defconfig
 
       # مرحله 5: فرآیند ساخت
       - name: Build the Linux distribution
