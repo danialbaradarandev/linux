@@ -36,6 +36,7 @@ jobs:
           wget https://buildroot.org/downloads/buildroot-2024.02.1.tar.gz
           tar -zxf buildroot-2024.02.1.tar.gz
           cd buildroot-2024.02.1
+          cp ../configs/my_custom_defconfig configs/
           make my_custom_defconfig
 
       # مرحله 5: فرآیند ساخت
@@ -50,4 +51,3 @@ jobs:
         with:
           name: buildroot-image
           path: buildroot-2024.02.1/output/images/
-        
