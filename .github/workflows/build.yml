@@ -1,53 +1,68 @@
-name: Build Custom Linux Distribution with Buildroot
+name: Build Sony Xperia Z2 Kernel (Downstream)
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # امکان اجرای دستی از تب Actions
 
 jobs:
-  build:
+  build-kernel:
+    name: Build Kernel
     runs-on: ubuntu-latest
-
+    
     steps:
-      # مرحله 1: آزادسازی فضای دیسک
-      - name: Maximize build space
-        uses: easimon/maximize-build-space@v10
-        with:
-          root-reserve-mb: 512
-          swap-size-mb: 1024
-          remove-dotnet: 'true'
-          remove-android: 'true'
-          remove-haskell: 'true'
-          remove-codeql: 'true'
-          remove-docker-images: 'true'
-
-      # مرحله 2: دریافت کدهای مخزن
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # مرحله 3: نصب پیش‌نیازها
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cpio
-
-      # مرحله 4: دانلود و تنظیم Buildroot
-      - name: Download and configure Buildroot
-        run: |
-          wget https://buildroot.org/downloads/buildroot-2024.02.1.tar.gz
-          tar -zxf buildroot-2024.02.1.tar.gz
-          cd buildroot-2024.02.1
-          cp ../configs/my_custom_defconfig configs/
-          make my_custom_defconfig
-
-      # مرحله 5: فرآیند ساخت
-      - name: Build the Linux distribution
-        working-directory: ./buildroot-2024.02.1
-        run: |
-          make MAKEINFO=false
-
-      # مرحله 6: ذخیره خروجی
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+      - name: Build Kernel with dabao1955 action
+        uses: dabao1955/kernel_build_action@v1
         with:
-          name: buildroot-image
-          path: buildroot-2024.02.1/output/images/
+          # --- منبع کرنل ---
+          # مخزن رسمی LineageOS برای این دستگاه
+          kernel-url: https://github.com/LineageOS/android_kernel_sony_msm8974
+          # شاخه (Branch) مناسب برای اندروید 11
+          kernel-branch: lineage-18.1 
+          
+          # --- تنظیمات ضروری برای Xperia Z2 ---
+          # فایل کانفیگ مخصوص سیریوس که در منبع کرنل وجود دارد [citation:3][citation:7]
+          config: shinano_sirius_defconfig
+          # معماری این دستگاه ARM است
+          arch: arm
+          # نسخه اندروید هدف برای انتخاب تولچین صحیح [citation:14]
+          android-version: 11
+          
+          # --- تولچین (ابزار کامپایل) ---
+          # فعال‌سازی GCC و Clang رسمی AOSP برای اطمینان از سازگاری
+          aosp-gcc: true
+          aosp-clang: true
+          # نسخه‌ای که با این نسل از کرنل‌ها به خوبی کار می‌کند
+          aosp-clang-version: r383902
+          
+          # --- بسته‌بندی و خروجی ---
+          # بسته‌بندی به صورت زیپ قابل فلش در ریکاوری (TWRP)
+          anykernel3: true
+          # غیرفعال کردن ساخت Release برای اینکه فقط فایل در Actions بماند
+          release: false
+          
+          # --- سرعت و کارایی ---
+          # استفاده از کش برای بیلدهای بعدی سریع‌تر
+          ccache: true
+          # عمق کلون را کم می‌کند تا سریع‌تر باشد
+          depth: 1
+          
+          # --- اطمینان از آپلود خروجی ---
+          # نام‌گذاری اختصاصی برای آرتیفکت
+          artifact-name: "Xperia-Z2-Kernel-${{ github.run_number }}"
+
+      # این مرحله به صورت خودکار توسط اکشن انجام می‌شود، اما برای اطمینان بیشتر می‌توانید آن را به صورت دستی نیز اضافه کنید.
+      # در اینجا ما از قابلیت داخلی خود اکشن استفاده می‌کنیم که فایل خروجی را به عنوان Artifact آپلود می‌کند.
+      - name: Upload Kernel Artifact
+        uses: actions/upload-artifact@v4
+        if: always() # آپلود حتی در صورت بروز خطا برای بررسی بهتر
+        with:
+          name: "Xperia-Z2-Kernel-Artifact"
+          path: |
+            # مسیر خروجی که اکشن kernel_build_action تولید می‌کند
+            # معمولاً در پوشه out یا AnyKernel3 قرار می‌گیرد
+            out/arch/arm/boot/zImage
+            AnyKernel3/*.zip
+          # اگر فایلی پیدا نشد، workflow را با شکست مواجه نکن تا بتوانید لاگ‌ها را بررسی کنید
+          if-no-files-found: warn
