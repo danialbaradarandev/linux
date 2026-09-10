@@ -1,68 +1,78 @@
 name: Build Sony Xperia Z2 Kernel (Downstream)
 
 on:
-  workflow_dispatch: # امکان اجرای دستی از تب Actions
+  workflow_dispatch:
 
 jobs:
-  build-kernel:
+  build:
     name: Build Kernel
-    runs-on: ubuntu-latest
-    
+    runs-on: ubuntu-20.04
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build Kernel with dabao1955 action
-        uses: dabao1955/kernel_build_action@v1
-        with:
-          # --- منبع کرنل ---
-          # مخزن رسمی LineageOS برای این دستگاه
-          kernel-url: https://github.com/LineageOS/android_kernel_sony_msm8974
-          # شاخه (Branch) مناسب برای اندروید 11
-          kernel-branch: lineage-18.1 
-          
-          # --- تنظیمات ضروری برای Xperia Z2 ---
-          # فایل کانفیگ مخصوص سیریوس که در منبع کرنل وجود دارد [citation:3][citation:7]
-          config: shinano_sirius_defconfig
-          # معماری این دستگاه ARM است
-          arch: arm
-          # نسخه اندروید هدف برای انتخاب تولچین صحیح [citation:14]
-          android-version: 11
-          
-          # --- تولچین (ابزار کامپایل) ---
-          # فعال‌سازی GCC و Clang رسمی AOSP برای اطمینان از سازگاری
-          aosp-gcc: true
-          aosp-clang: true
-          # نسخه‌ای که با این نسل از کرنل‌ها به خوبی کار می‌کند
-          aosp-clang-version: r383902
-          
-          # --- بسته‌بندی و خروجی ---
-          # بسته‌بندی به صورت زیپ قابل فلش در ریکاوری (TWRP)
-          anykernel3: true
-          # غیرفعال کردن ساخت Release برای اینکه فقط فایل در Actions بماند
-          release: false
-          
-          # --- سرعت و کارایی ---
-          # استفاده از کش برای بیلدهای بعدی سریع‌تر
-          ccache: true
-          # عمق کلون را کم می‌کند تا سریع‌تر باشد
-          depth: 1
-          
-          # --- اطمینان از آپلود خروجی ---
-          # نام‌گذاری اختصاصی برای آرتیفکت
-          artifact-name: "Xperia-Z2-Kernel-${{ github.run_number }}"
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git curl wget zip unzip python3 python2 bc bison flex libssl-dev make gcc g++
 
-      # این مرحله به صورت خودکار توسط اکشن انجام می‌شود، اما برای اطمینان بیشتر می‌توانید آن را به صورت دستی نیز اضافه کنید.
-      # در اینجا ما از قابلیت داخلی خود اکشن استفاده می‌کنیم که فایل خروجی را به عنوان Artifact آپلود می‌کند.
-      - name: Upload Kernel Artifact
-        uses: actions/upload-artifact@v4
-        if: always() # آپلود حتی در صورت بروز خطا برای بررسی بهتر
+      - name: Clone AnyKernel3
+        run: |
+          git clone --depth=1 https://github.com/osm0sis/AnyKernel3.git -b master AnyKernel3
+
+      - name: Clone kernel source
+        run: |
+          git clone --depth=1 https://github.com/LineageOS/android_kernel_sony_msm8974.git -b lineage-18.1 kernel
+
+      - name: Clone toolchain (proton-clang)
+        run: |
+          git clone --depth=1 https://github.com/kdrag0n/proton-clang.git -b master proton-clang
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1
         with:
-          name: "Xperia-Z2-Kernel-Artifact"
+          key: ${{ runner.os }}-xperia-z2
+
+      - name: Build kernel
+        run: |
+          cd kernel
+          export PATH=$(pwd)/../proton-clang/bin:$PATH
+          export ARCH=arm
+          export CC=clang
+          export CROSS_COMPILE=arm-linux-gnueabi-
+          export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+          
+          make O=out shinano_sirius_defconfig
+          make O=out -j$(nproc --all) \
+            CC=clang \
+            CLANG_TRIPLE=arm-linux-gnueabi- \
+            CROSS_COMPILE=arm-linux-gnueabi- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            LD=ld.lld \
+            AR=llvm-ar \
+            NM=llvm-nm \
+            OBJCOPY=llvm-objcopy \
+            OBJDUMP=llvm-objdump \
+            READELF=llvm-readelf \
+            OBJSIZE=llvm-size \
+            STRIP=llvm-strip \
+            LDGOLD=aarch64-linux-gnu-ld.gold \
+            LLVM_AR=llvm-ar \
+            LLVM_DIS=llvm-dis
+
+      - name: Package with AnyKernel3
+        run: |
+          cp kernel/out/arch/arm/boot/zImage AnyKernel3/zImage
+          cd AnyKernel3
+          zip -r9 ../Xperia-Z2-Kernel-${{ github.run_number }}.zip *
+
+      - name: Upload kernel artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Xperia-Z2-Kernel-${{ github.run_number }}
           path: |
-            # مسیر خروجی که اکشن kernel_build_action تولید می‌کند
-            # معمولاً در پوشه out یا AnyKernel3 قرار می‌گیرد
-            out/arch/arm/boot/zImage
-            AnyKernel3/*.zip
-          # اگر فایلی پیدا نشد، workflow را با شکست مواجه نکن تا بتوانید لاگ‌ها را بررسی کنید
+            Xperia-Z2-Kernel-*.zip
+            kernel/out/arch/arm/boot/zImage
           if-no-files-found: warn
