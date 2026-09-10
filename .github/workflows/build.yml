@@ -15,7 +15,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git curl wget zip unzip python3 python2 bc bison flex libssl-dev make gcc g++
+          sudo apt-get install -y git curl wget zip unzip python3 bc bison flex libssl-dev make gcc g++
 
       - name: Clone AnyKernel3
         run: |
