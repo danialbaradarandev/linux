@@ -1,0 +1,67 @@
+# configs/myboard_defconfig
+# یه defconfig کامل و سبک: busybox, nano, vim, python3, git, دسکتاپ سبک (Xorg+twm)
+# این رو کنار defconfig کرنل قبلی‌ات که ساختی نگه دار و در صورت نیاز
+# معماری/بورد هدف (BR2_arm=y و ...) و تنظیمات کرنلت رو از اون اضافه کن.
+
+#------------------------------------------------------------------
+# Toolchain
+#------------------------------------------------------------------
+BR2_TOOLCHAIN_BUILDROOT_CXX=y
+BR2_TOOLCHAIN_BUILDROOT_WCHAR=y
+BR2_USE_WCHAR=y
+
+#------------------------------------------------------------------
+# System
+#------------------------------------------------------------------
+BR2_TARGET_GENERIC_HOSTNAME="mydistro"
+BR2_TARGET_GENERIC_ISSUE="Welcome to MyDistro"
+BR2_TARGET_GENERIC_ROOT_PASSWD="root"
+BR2_SYSTEM_DHCP="eth0"
+
+#------------------------------------------------------------------
+# Init system / shell
+#------------------------------------------------------------------
+BR2_PACKAGE_BUSYBOX=y
+BR2_PACKAGE_BASH=y
+BR2_SYSTEM_BIN_SH_BASH=y
+
+#------------------------------------------------------------------
+# Editors
+#------------------------------------------------------------------
+BR2_PACKAGE_NANO=y
+BR2_PACKAGE_VIM=y
+
+#------------------------------------------------------------------
+# Dev / scripting tools
+#------------------------------------------------------------------
+BR2_PACKAGE_GIT=y
+BR2_PACKAGE_PYTHON3=y
+BR2_PACKAGE_PYTHON3_PYC=y
+
+#------------------------------------------------------------------
+# Networking basics (برای ssh زدن به سیستم و اپدیت)
+#------------------------------------------------------------------
+BR2_PACKAGE_OPENSSH=y
+BR2_PACKAGE_CA_CERTIFICATES=y
+
+#------------------------------------------------------------------
+# Light desktop: X.Org + twm (سبک‌ترین ویندومنیجر کلاسیک)
+#------------------------------------------------------------------
+BR2_PACKAGE_XORG7=y
+BR2_PACKAGE_XSERVER_XORG_SERVER=y
+BR2_PACKAGE_XDRIVER_XF86_VIDEO_FBDEV=y
+BR2_PACKAGE_XDRIVER_XF86_VIDEO_VESA=y
+BR2_PACKAGE_XDRIVER_XF86_INPUT_EVDEV=y
+BR2_PACKAGE_XDRIVER_XF86_INPUT_KEYBOARD=y
+BR2_PACKAGE_XDRIVER_XF86_INPUT_MOUSE=y
+BR2_PACKAGE_XAPP_TWM=y
+BR2_PACKAGE_XAPP_XINIT=y
+BR2_PACKAGE_XAPP_XCLOCK=y
+BR2_PACKAGE_XTERM=y
+
+#------------------------------------------------------------------
+# Filesystem image
+#------------------------------------------------------------------
+BR2_TARGET_ROOTFS_EXT2=y
+BR2_TARGET_ROOTFS_EXT2_4=y
+BR2_TARGET_ROOTFS_EXT2_SIZE="1G"
