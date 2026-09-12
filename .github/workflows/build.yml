@@ -27,7 +27,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # ران‌رهای گیت‌هاب پر از ابزارهای پیش‌نصب‌شده‌ان (اندروید، داکر، دات‌نت و ...)
+      # ران‌رهای گیت‌هاب پر از ابزارهای پیش‌نصب‌شده‌ان
       # که فضای زیادی اشغال می‌کنن؛ اول پاکشون می‌کنیم.
       - name: Free disk space
         run: |
@@ -37,20 +37,21 @@ jobs:
           sudo docker image prune -a -f || true
           df -h
 
-          - name: Install build dependencies
-          run: |
+      - name: Install build dependencies
+        run: |
           sudo apt-get update
           sudo apt-get install -y \
             build-essential git libncurses-dev unzip bc rsync cpio \
             file wget cmake python3 python3-pip libssl-dev bison flex \
-            ccache
+            ccache libelf-dev
 
       - name: Clone Buildroot
         run: |
           git clone --depth 1 --branch "${{ github.event.inputs.br_version || '2024.11.x' }}" \
             https://github.com/buildroot/buildroot.git
 
-      # کش کردن سورس دانلودشده پکیج‌ها (dl/) -- سنگین‌ترین بخش از نظر زمان دانلود
+      # کش کردن سورس دانلودشده پکیج‌ها (dl/)
+      # سنگین‌ترین بخش از نظر زمان دانلود
       - name: Cache Buildroot dl/
         uses: actions/cache@v4
         with:
@@ -59,7 +60,8 @@ jobs:
           restore-keys: |
             br-dl-
 
-      # کش کردن ccache -- کامپایل مجدد پکیج‌های تغییرنکرده رو خیلی سریع می‌کنه
+      # کش کردن ccache
+      # کامپایل مجدد پکیج‌های تغییرنکرده رو سریع‌تر می‌کنه
       - name: Cache ccache
         uses: actions/cache@v4
         with:
@@ -97,7 +99,8 @@ jobs:
           path: buildroot/output/images/*
           retention-days: 14
 
-      # اختیاری: در صورت شکست build، لاگ‌های کامل رو آپلود کن تا دیباگ راحت‌تر بشه
+      # اختیاری: در صورت شکست build، لاگ‌های کامل رو آپلود کن
+      # تا دیباگ راحت‌تر بشه.
       - name: Upload build logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
