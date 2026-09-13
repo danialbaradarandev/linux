@@ -1,109 +1,50 @@
-# .github/workflows/buildroot.yml
-#
-# ساخت یک توزیع کامل لینوکس با Buildroot روی GitHub Actions.
-# این فایل رو داخل ریپوی خودت در مسیر .github/workflows/buildroot.yml قرار بده.
-
-name: Build Buildroot Distro
+name: Build Yocto Distro
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'configs/**'
-      - '.github/workflows/buildroot.yml'
   workflow_dispatch:
-    inputs:
-      br_version:
-        description: 'نسخه Buildroot (تگ گیت)'
-        required: false
-        default: '2024.11.x'
 
 jobs:
   build:
     runs-on: ubuntu-22.04
-    timeout-minutes: 340   # کمی زیر سقف ۶ ساعته گیت‌هاب
+    timeout-minutes: 350
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 512
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
 
-      # ران‌رهای گیت‌هاب پر از ابزارهای پیش‌نصب‌شده‌ان
-      # که فضای زیادی اشغال می‌کنن؛ اول پاکشون می‌کنیم.
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android \
-            /opt/ghc /opt/hostedtoolcache/CodeQL \
-            /usr/local/.ghcup /opt/az
-          sudo docker image prune -a -f || true
-          df -h
-
-      - name: Install build dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential git libncurses-dev unzip bc rsync cpio \
-            file wget cmake python3 python3-pip libssl-dev bison flex \
-            ccache libelf-dev
+          sudo apt-get install -y gawk wget git diffstat unzip texinfo gcc build-essential chrpath socat cpio python3 python3-pip python3-pexpect xz-utils debianutils iputils-ping python3-git python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1
 
-      - name: Clone Buildroot
+      - name: Clone Poky (Yocto reference)
         run: |
-          git clone --depth 1 --branch "${{ github.event.inputs.br_version || '2024.11.x' }}" \
-            https://github.com/buildroot/buildroot.git
+          git clone -b scarthgap git://git.yoctoproject.org/poky
+          cd poky
 
-      # کش کردن سورس دانلودشده پکیج‌ها (dl/)
-      # سنگین‌ترین بخش از نظر زمان دانلود
-      - name: Cache Buildroot dl/
-        uses: actions/cache@v4
-        with:
-          path: buildroot/dl
-          key: br-dl-${{ hashFiles('configs/**') }}
-          restore-keys: |
-            br-dl-
-
-      # کش کردن ccache
-      # کامپایل مجدد پکیج‌های تغییرنکرده رو سریع‌تر می‌کنه
-      - name: Cache ccache
-        uses: actions/cache@v4
-        with:
-          path: ~/.buildroot-ccache
-          key: br-ccache-${{ runner.os }}-${{ hashFiles('configs/**') }}-${{ github.sha }}
-          restore-keys: |
-            br-ccache-${{ runner.os }}-${{ hashFiles('configs/**') }}-
-            br-ccache-${{ runner.os }}-
-
-      - name: Apply custom defconfig
+      - name: Configure and Build
         run: |
-          cp configs/myboard_defconfig buildroot/configs/
-          cd buildroot
-          make myboard_defconfig
+          cd poky
+          source oe-init-build-env
+          # تنظیم ماشین هدف (x86_64 برای QEMU)
+          echo 'MACHINE = "qemux86-64"' >> conf/local.conf
+          # استفاده از کش سرور Yocto برای سرعت بیشتر
+          echo 'BB_HASHSERVE = "auto"' >> conf/local.conf
+          echo 'BB_HASHSERVE_UPSTREAM = "wss://hashserv.yoctoproject.org/ws"' >> conf/local.conf
+          echo 'SSTATE_MIRRORS ?= "file://.* http://sstate.yoctoproject.org/all/PATH;downloadfilename=PATH"' >> conf/local.conf
+          # شروع بیلد
+          bitbake core-image-minimal
 
-      - name: Enable ccache in Buildroot config
-        run: |
-          cd buildroot
-          echo 'BR2_CCACHE=y' >> .config
-          echo "BR2_CCACHE_DIR=\"$HOME/.buildroot-ccache\"" >> .config
-          make olddefconfig
-
-      - name: Build
-        run: |
-          cd buildroot
-          make -j"$(nproc)"
-
-      - name: Show output size
-        run: du -sh buildroot/output/images/* || true
-
-      - name: Upload build artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: buildroot-images
-          path: buildroot/output/images/*
-          retention-days: 14
-
-      # اختیاری: در صورت شکست build، لاگ‌های کامل رو آپلود کن
-      # تا دیباگ راحت‌تر بشه.
-      - name: Upload build logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: buildroot-logs
-          path: buildroot/output/build/build-time.log
+          name: yocto-image
+          path: poky/build/tmp/deploy/images/qemux86-64/
